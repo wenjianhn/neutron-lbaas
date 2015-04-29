@@ -217,6 +217,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
                           'driver %(driver)s'),
                       {'operation': operation.capitalize(), 'obj': obj_type,
                        'id': obj.id, 'driver': driver})
+        # TODO(wenjianhn): send error to notifications.error by using olso.messaging
         self._update_statuses(obj, error=True)
 
     def agent_updated(self, context, payload):
