@@ -50,6 +50,9 @@ class TestManager(base.BaseTestCase):
         self.update_statuses_patcher = mock.patch.object(
             self.mgr, '_update_statuses')
         self.update_statuses = self.update_statuses_patcher.start()
+        self.notify_error = mock.patch.object(
+            self.mgr._notifier, 'error').start()
+        self.context = mock.Mock()
 
     def test_initialize_service_hook(self):
         with mock.patch.object(self.mgr, 'sync_state') as sync:
@@ -365,11 +368,13 @@ class TestManager(base.BaseTestCase):
         self.assertIn(loadbalancer.id, self.mgr.instance_mapping)
         self.driver_mock.loadbalancer.create.side_effect = Exception
         mlb.return_value = loadbalancer
-        self.mgr.create_loadbalancer(mock.Mock(), loadbalancer.to_dict(),
+        self.mgr.create_loadbalancer(self.context, loadbalancer.to_dict(),
                                      'devdriver')
         self.driver_mock.loadbalancer.create.assert_called_once_with(
             loadbalancer)
         self.update_statuses.assert_called_once_with(loadbalancer, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'loadbalancer.create.error', mock.ANY)
 
     @mock.patch.object(data_models.LoadBalancer, 'from_dict')
     def test_update_loadbalancer(self, mlb):
@@ -395,11 +400,13 @@ class TestManager(base.BaseTestCase):
 
         mlb.side_effect = [loadbalancer, old_loadbalancer]
         self.driver_mock.loadbalancer.update.side_effect = Exception
-        self.mgr.update_loadbalancer(mock.Mock(), old_loadbalancer,
+        self.mgr.update_loadbalancer(self.context, old_loadbalancer,
                                      loadbalancer)
         self.driver_mock.loadbalancer.update.assert_called_once_with(
             old_loadbalancer, loadbalancer)
         self.update_statuses.assert_called_once_with(loadbalancer, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'loadbalancer.update.error', mock.ANY)
 
     @mock.patch.object(data_models.LoadBalancer, 'from_dict')
     def test_delete_loadbalancer(self, mlb):
@@ -432,9 +439,11 @@ class TestManager(base.BaseTestCase):
         self.assertIn(loadbalancer.id, self.mgr.instance_mapping)
         self.driver_mock.listener.create.side_effect = Exception
         mlistener.return_value = listener
-        self.mgr.create_listener(mock.Mock(), listener.to_dict())
+        self.mgr.create_listener(self.context, listener.to_dict())
         self.driver_mock.listener.create.assert_called_once_with(listener)
         self.update_statuses.assert_called_once_with(listener, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'listener.create.error', mock.ANY)
 
     @mock.patch.object(data_models.Listener, 'from_dict')
     def test_update_listener(self, mlistener):
@@ -464,10 +473,12 @@ class TestManager(base.BaseTestCase):
                                         protocol_port=81)
         mlistener.side_effect = [listener, old_listener]
         self.driver_mock.listener.update.side_effect = Exception
-        self.mgr.update_listener(mock.Mock(), old_listener, listener)
+        self.mgr.update_listener(self.context, old_listener, listener)
         self.driver_mock.listener.update.assert_called_once_with(old_listener,
                                                                  listener)
         self.update_statuses.assert_called_once_with(listener, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'listener.update.error', mock.ANY)
 
     @mock.patch.object(data_models.Listener, 'from_dict')
     def test_delete_listener(self, mlistener):
@@ -500,7 +511,7 @@ class TestManager(base.BaseTestCase):
 
         mpool.return_value = pool
         self.driver_mock.pool.create.side_effect = Exception
-        self.mgr.create_pool(mock.Mock(), pool)
+        self.mgr.create_pool(self.context, pool)
         self.driver_mock.pool.create.assert_called_once_with(pool)
         self.update_statuses.assert_called_once_with(pool, error=True)
 
@@ -525,9 +536,11 @@ class TestManager(base.BaseTestCase):
         old_pool = data_models.Pool(id='1', listener=listener, protocol='HTTP')
         mpool.side_effect = [pool, old_pool]
         self.driver_mock.pool.update.side_effect = Exception
-        self.mgr.update_pool(mock.Mock(), old_pool.to_dict(), pool.to_dict())
+        self.mgr.update_pool(self.context, old_pool.to_dict(), pool.to_dict())
         self.driver_mock.pool.update.assert_called_once_with(old_pool, pool)
         self.update_statuses.assert_called_once_with(pool, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'pool.update.error', mock.ANY)
 
     @mock.patch.object(data_models.Pool, 'from_dict')
     def test_delete_pool(self, mpool):
@@ -560,9 +573,11 @@ class TestManager(base.BaseTestCase):
         member = data_models.Member(id='1', pool=pool)
         mmember.return_value = member
         self.driver_mock.member.create.side_effect = Exception
-        self.mgr.create_member(mock.Mock(), member.to_dict())
+        self.mgr.create_member(self.context, member.to_dict())
         self.driver_mock.member.create.assert_called_once_with(member)
         self.update_statuses.assert_called_once_with(member, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'member.create.error', mock.ANY)
 
     @mock.patch.object(data_models.Member, 'from_dict')
     def test_update_member(self, mmember):
@@ -589,11 +604,13 @@ class TestManager(base.BaseTestCase):
         old_member = data_models.Member(id='1', pool=pool, weight=2)
         mmember.side_effect = [member, old_member]
         self.driver_mock.member.update.side_effect = Exception
-        self.mgr.update_member(mock.Mock(), old_member.to_dict(),
+        self.mgr.update_member(self.context, old_member.to_dict(),
                                member.to_dict())
         self.driver_mock.member.update.assert_called_once_with(old_member,
                                                                member)
         self.update_statuses.assert_called_once_with(member, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'member.update.error', mock.ANY)
 
     @mock.patch.object(data_models.Member, 'from_dict')
     def test_delete_member(self, mmember):
@@ -628,9 +645,11 @@ class TestManager(base.BaseTestCase):
         monitor = data_models.HealthMonitor(id='1', pool=pool)
         mmonitor.return_value = monitor
         self.driver_mock.healthmonitor.create.side_effect = Exception
-        self.mgr.create_healthmonitor(mock.Mock(), monitor.to_dict())
+        self.mgr.create_healthmonitor(self.context, monitor.to_dict())
         self.driver_mock.healthmonitor.create.assert_called_once_with(monitor)
         self.update_statuses.assert_called_once_with(monitor, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'healthmonitor.create.error', mock.ANY)
 
     @mock.patch.object(data_models.HealthMonitor, 'from_dict')
     def test_update_monitor(self, mmonitor):
@@ -657,11 +676,13 @@ class TestManager(base.BaseTestCase):
         old_monitor = data_models.HealthMonitor(id='1', pool=pool, delay=2)
         mmonitor.side_effect = [monitor, old_monitor]
         self.driver_mock.healthmonitor.update.side_effect = Exception
-        self.mgr.update_healthmonitor(mock.Mock(), monitor.to_dict(),
+        self.mgr.update_healthmonitor(self.context, monitor.to_dict(),
                                       monitor.to_dict())
         self.driver_mock.healthmonitor.update.assert_called_once_with(
             old_monitor, monitor)
         self.update_statuses.assert_called_once_with(monitor, error=True)
+        self.notify_error.assert_called_once_with(
+            self.context, 'healthmonitor.update.error', mock.ANY)
 
     @mock.patch.object(data_models.HealthMonitor, 'from_dict')
     def test_delete_monitor(self, mmonitor):

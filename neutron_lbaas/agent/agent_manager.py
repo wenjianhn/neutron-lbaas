@@ -13,8 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import traceback
+
 from neutron.agent import rpc as agent_rpc
 from neutron.common import exceptions as n_exc
+from neutron.common import rpc as n_rpc
 from neutron import context as ncontext
 from neutron.i18n import _LE, _LI
 from neutron.openstack.common import loopingcall
@@ -60,6 +63,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         self.conf = conf
         self.context = ncontext.get_admin_context_without_session()
         self.serializer = agent_driver_base.DataModelSerializer()
+        self._notifier = n_rpc.get_notifier('network')
         self.plugin_rpc = agent_api.LbaasAgentApi(
             lb_const.LOADBALANCER_PLUGINV2,
             self.context,
@@ -211,14 +215,21 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
             except NotImplementedError:
                 pass  # Not all drivers will support this
 
-    def _handle_failed_driver_call(self, operation, obj, driver):
+    def _handle_failed_driver_call(self, context, operation, obj, driver):
+        exc = traceback.format_exc()
         obj_type = obj.__class__.__name__.lower()
-        LOG.exception(_LE('%(operation)s %(obj)s %(id)s failed on device '
-                          'driver %(driver)s'),
-                      {'operation': operation.capitalize(), 'obj': obj_type,
-                       'id': obj.id, 'driver': driver})
-        # TODO(wenjianhn): send error to notifications.error by using olso.messaging
+        msg = _LE('%(operation)s %(obj)s %(id)s failed on device '
+                  'driver %(driver)s') % {'operation': operation.capitalize(),
+                                          'obj': obj_type,
+                                          'id': obj.id,
+                                          'driver': driver, }
+        LOG.exception(msg)
         self._update_statuses(obj, error=True)
+        event_type = "%s.%s.error" % (obj_type, operation)
+        body = {}
+        body[obj_type] = obj.to_api_dict()
+        body[obj_type]['error_message'] = '%s\n%s\n' % (msg, exc)
+        self._notifier.error(context, event_type, body)
 
     def agent_updated(self, context, payload):
         """Handle the agent_updated notification event."""
@@ -270,8 +281,8 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.loadbalancer.create(loadbalancer)
         except Exception:
-            self._handle_failed_driver_call('create', loadbalancer,
-                                            driver.get_name())
+            self._handle_failed_driver_call(context, 'create',
+                                            loadbalancer, driver.get_name())
         else:
             self.instance_mapping[loadbalancer.id] = driver_name
             self._update_statuses(loadbalancer)
@@ -283,7 +294,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.loadbalancer.update(old_loadbalancer, loadbalancer)
         except Exception:
-            self._handle_failed_driver_call('update', loadbalancer,
+            self._handle_failed_driver_call(context, 'update', loadbalancer,
                                             driver.get_name())
         else:
             self._update_statuses(loadbalancer)
@@ -300,7 +311,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.listener.create(listener)
         except Exception:
-            self._handle_failed_driver_call('create', listener,
+            self._handle_failed_driver_call(context, 'create', listener,
                                             driver.get_name())
         else:
             self._update_statuses(listener)
@@ -312,7 +323,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.listener.update(old_listener, listener)
         except Exception:
-            self._handle_failed_driver_call('update', listener,
+            self._handle_failed_driver_call(context, 'update', listener,
                                             driver.get_name())
         else:
             self._update_statuses(listener)
@@ -328,7 +339,8 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.pool.create(pool)
         except Exception:
-            self._handle_failed_driver_call('create', pool, driver.get_name())
+            self._handle_failed_driver_call(context, 'create', pool,
+                                            driver.get_name())
         else:
             self._update_statuses(pool)
 
@@ -339,7 +351,8 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.pool.update(old_pool, pool)
         except Exception:
-            self._handle_failed_driver_call('create', pool, driver.get_name())
+            self._handle_failed_driver_call(context, 'update', pool,
+                                            driver.get_name())
         else:
             self._update_statuses(pool)
 
@@ -354,7 +367,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.member.create(member)
         except Exception:
-            self._handle_failed_driver_call('create', member,
+            self._handle_failed_driver_call(context, 'create', member,
                                             driver.get_name())
         else:
             self._update_statuses(member)
@@ -366,7 +379,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.member.update(old_member, member)
         except Exception:
-            self._handle_failed_driver_call('create', member,
+            self._handle_failed_driver_call(context, 'update', member,
                                             driver.get_name())
         else:
             self._update_statuses(member)
@@ -382,7 +395,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.healthmonitor.create(healthmonitor)
         except Exception:
-            self._handle_failed_driver_call('create', healthmonitor,
+            self._handle_failed_driver_call(context, 'create', healthmonitor,
                                             driver.get_name())
         else:
             self._update_statuses(healthmonitor)
@@ -396,7 +409,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         try:
             driver.healthmonitor.update(old_healthmonitor, healthmonitor)
         except Exception:
-            self._handle_failed_driver_call('create', healthmonitor,
+            self._handle_failed_driver_call(context, 'update', healthmonitor,
                                             driver.get_name())
         else:
             self._update_statuses(healthmonitor)
