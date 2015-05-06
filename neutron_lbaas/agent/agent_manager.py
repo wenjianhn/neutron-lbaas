@@ -228,7 +228,7 @@ class LbaasAgentManager(periodic_task.PeriodicTasks):
         event_type = "%s.%s.error" % (obj_type, operation)
         body = {}
         body[obj_type] = obj.to_api_dict()
-        body[obj_type]['error_message'] = '%s\n%s\n' % (msg, exc)
+        body[obj_type]['message'] = '%s\n%s\n' % (msg, exc)
         self._notifier.error(context, event_type, body)
 
     def agent_updated(self, context, payload):

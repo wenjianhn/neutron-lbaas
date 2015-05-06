@@ -14,6 +14,7 @@
 #    under the License.
 
 import contextlib
+import operator
 
 import mock
 from neutron.plugins.common import constants
@@ -22,6 +23,17 @@ from neutron_lbaas.agent import agent_manager as manager
 from neutron_lbaas.services.loadbalancer import constants as lb_const
 from neutron_lbaas.services.loadbalancer import data_models
 from neutron_lbaas.tests import base
+
+
+class MatcherHasKey(object):
+    # For complex argument matching in mock, visit http://goo.gl/6Hh5Kw
+
+    def __init__(self, key, extract_func=lambda x: x):
+        self.key = key
+        self.extract_func = extract_func
+
+    def __eq__(self, other):
+        return self.key in self.extract_func(other)
 
 
 class TestManager(base.BaseTestCase):
@@ -373,8 +385,9 @@ class TestManager(base.BaseTestCase):
         self.driver_mock.loadbalancer.create.assert_called_once_with(
             loadbalancer)
         self.update_statuses.assert_called_once_with(loadbalancer, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('loadbalancer'))
         self.notify_error.assert_called_once_with(
-            self.context, 'loadbalancer.create.error', mock.ANY)
+            self.context, 'loadbalancer.create.error', m)
 
     @mock.patch.object(data_models.LoadBalancer, 'from_dict')
     def test_update_loadbalancer(self, mlb):
@@ -405,8 +418,9 @@ class TestManager(base.BaseTestCase):
         self.driver_mock.loadbalancer.update.assert_called_once_with(
             old_loadbalancer, loadbalancer)
         self.update_statuses.assert_called_once_with(loadbalancer, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('loadbalancer'))
         self.notify_error.assert_called_once_with(
-            self.context, 'loadbalancer.update.error', mock.ANY)
+            self.context, 'loadbalancer.update.error', m)
 
     @mock.patch.object(data_models.LoadBalancer, 'from_dict')
     def test_delete_loadbalancer(self, mlb):
@@ -442,8 +456,9 @@ class TestManager(base.BaseTestCase):
         self.mgr.create_listener(self.context, listener.to_dict())
         self.driver_mock.listener.create.assert_called_once_with(listener)
         self.update_statuses.assert_called_once_with(listener, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('listener'))
         self.notify_error.assert_called_once_with(
-            self.context, 'listener.create.error', mock.ANY)
+            self.context, 'listener.create.error', m)
 
     @mock.patch.object(data_models.Listener, 'from_dict')
     def test_update_listener(self, mlistener):
@@ -477,8 +492,9 @@ class TestManager(base.BaseTestCase):
         self.driver_mock.listener.update.assert_called_once_with(old_listener,
                                                                  listener)
         self.update_statuses.assert_called_once_with(listener, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('listener'))
         self.notify_error.assert_called_once_with(
-            self.context, 'listener.update.error', mock.ANY)
+            self.context, 'listener.update.error', m)
 
     @mock.patch.object(data_models.Listener, 'from_dict')
     def test_delete_listener(self, mlistener):
@@ -539,8 +555,9 @@ class TestManager(base.BaseTestCase):
         self.mgr.update_pool(self.context, old_pool.to_dict(), pool.to_dict())
         self.driver_mock.pool.update.assert_called_once_with(old_pool, pool)
         self.update_statuses.assert_called_once_with(pool, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('pool'))
         self.notify_error.assert_called_once_with(
-            self.context, 'pool.update.error', mock.ANY)
+            self.context, 'pool.update.error', m)
 
     @mock.patch.object(data_models.Pool, 'from_dict')
     def test_delete_pool(self, mpool):
@@ -576,8 +593,9 @@ class TestManager(base.BaseTestCase):
         self.mgr.create_member(self.context, member.to_dict())
         self.driver_mock.member.create.assert_called_once_with(member)
         self.update_statuses.assert_called_once_with(member, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('member'))
         self.notify_error.assert_called_once_with(
-            self.context, 'member.create.error', mock.ANY)
+            self.context, 'member.create.error', m)
 
     @mock.patch.object(data_models.Member, 'from_dict')
     def test_update_member(self, mmember):
@@ -609,8 +627,9 @@ class TestManager(base.BaseTestCase):
         self.driver_mock.member.update.assert_called_once_with(old_member,
                                                                member)
         self.update_statuses.assert_called_once_with(member, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('member'))
         self.notify_error.assert_called_once_with(
-            self.context, 'member.update.error', mock.ANY)
+            self.context, 'member.update.error', m)
 
     @mock.patch.object(data_models.Member, 'from_dict')
     def test_delete_member(self, mmember):
@@ -648,8 +667,9 @@ class TestManager(base.BaseTestCase):
         self.mgr.create_healthmonitor(self.context, monitor.to_dict())
         self.driver_mock.healthmonitor.create.assert_called_once_with(monitor)
         self.update_statuses.assert_called_once_with(monitor, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('healthmonitor'))
         self.notify_error.assert_called_once_with(
-            self.context, 'healthmonitor.create.error', mock.ANY)
+            self.context, 'healthmonitor.create.error', m)
 
     @mock.patch.object(data_models.HealthMonitor, 'from_dict')
     def test_update_monitor(self, mmonitor):
@@ -681,8 +701,9 @@ class TestManager(base.BaseTestCase):
         self.driver_mock.healthmonitor.update.assert_called_once_with(
             old_monitor, monitor)
         self.update_statuses.assert_called_once_with(monitor, error=True)
+        m = MatcherHasKey('message', operator.itemgetter('healthmonitor'))
         self.notify_error.assert_called_once_with(
-            self.context, 'healthmonitor.update.error', mock.ANY)
+            self.context, 'healthmonitor.update.error', m)
 
     @mock.patch.object(data_models.HealthMonitor, 'from_dict')
     def test_delete_monitor(self, mmonitor):
